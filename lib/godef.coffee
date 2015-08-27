@@ -42,7 +42,7 @@ class Godef
 
   gotoDefinitionForWordAtCursor: ->
     @editor = atom?.workspace?.getActiveTextEditor()
-    done = (err, messages) =>
+    done = (err, messages) ->
       @dispatch?.resetAndDisplayMessages(@editor, messages)
 
     unless @dispatch?.isValidEditor(@editor)
@@ -52,12 +52,25 @@ class Godef
       @bailWithWarning('Godef only works with a single cursor', done)
       return
 
-    editorCursorOffset = (e) ->
-      e.getBuffer().characterIndexForPosition(e.getCursorBufferPosition())
+    selections = @editor.getSelections()
+    console.log selections
+    word = ""
 
-    offset = editorCursorOffset(@editor)
+    if selections.length == 1
+        if selections[0].isEmpty()
+            result = @wordAtCursor(@editor)
+            word = result.word
+        else
+            word = selections[0].getText()
+    else if selections.length > 1
+        @bailWithWarning('Too much selections')
+        return
+    else
+        result = @wordAtCursor(@editor)
+        word = result.word
+
     @reset(@editor)
-    @gotoDefinitionWithParameters(['-o', offset, '-i'], @editor.getText(), done)
+    @gotoDefinitionForWord(word, done)
 
   gotoDefinitionForWord: (word, callback = -> undefined) ->
     @gotoDefinitionWithParameters([word], undefined, callback)
@@ -86,6 +99,7 @@ class Godef
     filePath = @editor.getPath()
     cwd = path.dirname(filePath)
     args = ['-f', filePath, cmdArgs...]
+    console.log args
     @dispatch.executor.exec(cmd, cwd, env, done, args, cmdInput)
 
   parseGodefLocation: (godefStdout) ->
